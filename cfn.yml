@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: jwtex
+    Description: A serverless JWT exchanger and OIDC IdP
+    SemanticVersion: "0.1.0"
+    Author: Aidan Steele
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels: ['iam', 'oidc', 'jwt', 'auth', 'federation']
+    HomePageUrl: https://github.com/aidansteele/jwtex
+    SourceCodeUrl: https://github.com/aidansteele/jwtex
+
+Parameters:
+  Prefix:
+    Type: String
+    Default: jwtex
+  CertificateArn:
+    Type: String
+  DomainName:
+    Type: String
+  HostedZoneId:
+    Type: String
+  MapperFunctionArn:
+    Type: String
+
+Resources:
+  Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./lambda/bootstrap
+      Architectures: [arm64]
+      AutoPublishAlias: live
+      Runtime: provided.al2
+      Handler: unused
+      Timeout: 90
+      MemorySize: 512
+      Environment:
+        Variables:
+          KMS_KEY_ID: !GetAtt RsaKey.Arn
+          ISSUER_URL: !Sub https://${DomainName}
+          SSM_PREFIX: !Sub "/${Prefix}"
+          MAPPER_ARN: !Ref JsMapper.Alias
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:580247275435:layer:LambdaInsightsExtension-Arm64:1
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: !Ref Prefix
+        - Statement:
+            - Effect: Allow
+              Action:
+                - kms:Sign
+                - kms:GetPublicKey
+              Resource: !GetAtt RsaKey.Arn
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !Ref MapperFunctionArn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            PayloadFormatVersion: "1.0"
+
+  RsaKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: jwtex rsa signer
+      KeySpec: RSA_2048
+      KeyUsage: SIGN_VERIFY
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: key-policy
+        Statement:
+          - Sid: AllowIAM
+            Effect: Allow
+            Action: kms:*
+            Resource: "*"
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Domain:
+        CertificateArn: !Ref CertificateArn
+        DomainName: !Ref DomainName
+        Route53:
+          HostedZoneId: !Ref HostedZoneId
+
+Outputs:
+  RsaKey:
+    Value: !GetAtt RsaKey.Arn
+  Function:
+    Value: !Ref Function.Version
+  ApiUrl:
+    Value: !GetAtt Api.ApiEndpoint
