@@ -1,5 +1,9 @@
 # jwtex
 
+**UPDATE**: I'll keep this repo online for educational reasons, but a better approach 
+is to  use Cognito's native capabilities (described in [this blog post][cognito]) 
+instead of the code in this repo.
+
 **This README is a work in progress*
 
 `jwtex` is a serverless application that takes JSON Web Tokens (JWTs) in one format
@@ -273,5 +277,6 @@ index 649867d..2784d1a 100644
 --
 ```
 
+[cognito]: https://awsteele.com/blog/2023/10/25/aws-role-session-tags-for-github-actions.html
 [gha-oidc]: https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#understanding-the-oidc-token
 [role-tags]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html
